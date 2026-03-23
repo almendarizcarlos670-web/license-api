@@ -2,5 +2,8 @@
   "name": "ventas-express-license-api",
   "version": "1.0.0",
   "private": true,
-  "description": "API mínima para comprobar licencias revocadas (desplegar en Vercel gratis)"
+  "description": "API + panel admin para licencias revocadas (Vercel + Upstash Redis gratis)",
+  "dependencies": {
+    "@upstash/redis": "^1.34.3"
+  }
 }

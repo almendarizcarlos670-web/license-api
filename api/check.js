@@ -1,9 +1,12 @@
 /**
  * GET /api/check?product=ventas-express-ingresos-v1&licenseId=<uuid>
  *
- * Lista de revocadas: variable de entorno REVOKED_LICENSE_IDS (UUIDs separados por coma o espacio).
- * Opcional: LICENSE_API_KEY — si está definida, el cliente debe enviar el mismo valor en ?key= o header x-license-key
+ * Revocadas:
+ * - Variable REVOKED_LICENSE_IDS (coma)
+ * - Set Redis "revoked:licenseIds" (panel admin / Upstash)
  */
+const { getRedis, SET_KEY } = require('./_redis');
+
 module.exports = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -45,14 +48,25 @@ module.exports = async (req, res) => {
   }
 
   const raw = process.env.REVOKED_LICENSE_IDS || '';
-  const revoked = new Set(
+  const fromEnv = new Set(
     raw
       .split(/[,;\s\n\r]+/)
       .map((s) => s.trim())
       .filter(Boolean),
   );
 
-  const isRevoked = revoked.has(licenseId);
+  let fromRedis = false;
+  const redis = getRedis();
+  if (redis) {
+    try {
+      const n = await redis.sismember(SET_KEY, licenseId);
+      fromRedis = Boolean(n);
+    } catch (_e) {
+      /* si Redis falla, seguimos solo con env */
+    }
+  }
+
+  const isRevoked = fromEnv.has(licenseId) || fromRedis;
 
   res.status(200).json({
     ok: true,

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin — Licencias revocadas</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 520px;
+      margin: 40px auto;
+      padding: 0 16px;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    h1 { font-size: 1.25rem; margin-bottom: 8px; }
+    p.hint { font-size: 0.85rem; color: #94a3b8; margin-bottom: 24px; }
+    label { display: block; font-size: 0.8rem; margin-bottom: 4px; color: #94a3b8; }
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #f8fafc;
+      margin-bottom: 12px;
+    }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    button {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn-revoke { background: #dc2626; color: white; }
+    .btn-remove { background: #475569; color: white; }
+    .btn-list { background: #2563eb; color: white; }
+    #msg { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.9rem; white-space: pre-wrap; word-break: break-all; }
+    .ok { background: #14532d; border: 1px solid #22c55e; }
+    .err { background: #450a0a; border: 1px solid #f87171; }
+    ul { margin: 8px 0 0 20px; }
+  </style>
+</head>
+<body>
+  <h1>Licencias revocadas (Redis)</h1>
+  <p class="hint">
+    Contraseña = variable <code>ADMIN_SECRET</code> en Vercel. Los ID se guardan en Upstash Redis (no en variables de entorno).
+  </p>
+
+  <label for="secret">Contraseña de administrador</label>
+  <input id="secret" type="password" autocomplete="current-password" placeholder="ADMIN_SECRET" />
+
+  <label for="licenseId">License ID (UUID)</label>
+  <input id="licenseId" type="text" placeholder="0528c987-9863-4a80-a704-03d88e0c6979" />
+
+  <div class="row">
+    <button type="button" class="btn-revoke" id="btnRevoke">Revocar</button>
+    <button type="button" class="btn-remove" id="btnRemove">Quitar revocación</button>
+    <button type="button" class="btn-list" id="btnList">Listar (Redis)</button>
+  </div>
+
+  <div id="msg"></div>
+
+  <script>
+    const msg = document.getElementById('msg');
+    function show(text, isErr) {
+      msg.className = isErr ? 'err' : 'ok';
+      msg.textContent = text;
+    }
+
+    async function post(path, body) {
+      const r = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || r.statusText || 'Error');
+      return j;
+    }
+
+    document.getElementById('btnRevoke').onclick = async () => {
+      const secret = document.getElementById('secret').value.trim();
+      const licenseId = document.getElementById('licenseId').value.trim();
+      if (!secret || !licenseId) {
+        show('Completa contraseña e ID.', true);
+        return;
+      }
+      try {
+        const j = await post('/api/admin/revoke', { secret, licenseId });
+        show(JSON.stringify(j, null, 2), false);
+      } catch (e) {
+        show(String(e.message || e), true);
+      }
+    };
+
+    document.getElementById('btnRemove').onclick = async () => {
+      const secret = document.getElementById('secret').value.trim();
+      const licenseId = document.getElementById('licenseId').value.trim();
+      if (!secret || !licenseId) {
+        show('Completa contraseña e ID.', true);
+        return;
+      }
+      try {
+        const j = await post('/api/admin/remove', { secret, licenseId });
+        show(JSON.stringify(j, null, 2), false);
+      } catch (e) {
+        show(String(e.message || e), true);
+      }
+    };
+
+    document.getElementById('btnList').onclick = async () => {
+      const secret = document.getElementById('secret').value.trim();
+      if (!secret) {
+        show('Completa la contraseña.', true);
+        return;
+      }
+      try {
+        const j = await post('/api/admin/list', { secret });
+        const ids = j.ids || [];
+        show(
+          'Total: ' + ids.length + '\n\n' + (ids.length ? ids.join('\n') : '(vacío)'),
+          false,
+        );
+      } catch (e) {
+        show(String(e.message || e), true);
+      }
+    };
+  </script>
+</body>
+</html>
