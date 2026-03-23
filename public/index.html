@@ -8,14 +8,14 @@
     * { box-sizing: border-box; }
     body {
       font-family: system-ui, sans-serif;
-      max-width: 520px;
+      max-width: 720px;
       margin: 40px auto;
       padding: 0 16px;
       background: #0f172a;
       color: #e2e8f0;
     }
     h1 { font-size: 1.25rem; margin-bottom: 8px; }
-    p.hint { font-size: 0.85rem; color: #94a3b8; margin-bottom: 24px; }
+    p.hint { font-size: 0.85rem; color: #94a3b8; margin-bottom: 16px; }
     label { display: block; font-size: 0.8rem; margin-bottom: 4px; color: #94a3b8; }
     input {
       width: 100%;
@@ -37,20 +37,56 @@
     .btn-revoke { background: #dc2626; color: white; }
     .btn-remove { background: #475569; color: white; }
     .btn-list { background: #2563eb; color: white; }
+    .btn-consult { background: #059669; color: white; }
     #msg { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.9rem; white-space: pre-wrap; word-break: break-all; }
     .ok { background: #14532d; border: 1px solid #22c55e; }
     .err { background: #450a0a; border: 1px solid #f87171; }
-    ul { margin: 8px 0 0 20px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin-top: 8px;
+    }
+    th, td {
+      border: 1px solid #334155;
+      padding: 8px 10px;
+      text-align: left;
+    }
+    th { background: #1e293b; color: #94a3b8; font-weight: 600; }
+    tr:nth-child(even) { background: #1e293b33; }
+    .badge-revoked {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: #7f1d1d;
+      color: #fecaca;
+      font-size: 0.75rem;
+    }
+    .badge-active {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: #14532d;
+      color: #bbf7d0;
+      font-size: 0.75rem;
+    }
+    #tableWrap { overflow-x: auto; }
   </style>
 </head>
 <body>
-  <h1>Licencias revocadas (Redis)</h1>
+  <h1>Licencias revocadas</h1>
   <p class="hint">
-    Contraseña = variable <code>ADMIN_SECRET</code> en Vercel. Los ID se guardan en Upstash Redis (no en variables de entorno).
+    Contraseña = <code>ADMIN_SECRET</code> en Vercel. Los ID en <strong>Redis</strong> se gestionan aquí; los de la variable <code>REVOKED_LICENSE_IDS</code> también aparecen en la lista.
+  </p>
+  <p class="hint">
+    Solo se listan licencias <strong>revocadas</strong>. Para saber si un ID concreto está <strong>activa</strong>, usa <strong>Consultar estado</strong> con ese UUID.
   </p>
 
   <label for="secret">Contraseña de administrador</label>
   <input id="secret" type="password" autocomplete="current-password" placeholder="ADMIN_SECRET" />
+
+  <label for="apiKey">Clave API (opcional)</label>
+  <input id="apiKey" type="password" autocomplete="off" placeholder="Solo si configuraste LICENSE_API_KEY en Vercel" />
 
   <label for="licenseId">License ID (UUID)</label>
   <input id="licenseId" type="text" placeholder="0528c987-9863-4a80-a704-03d88e0c6979" />
@@ -58,16 +94,61 @@
   <div class="row">
     <button type="button" class="btn-revoke" id="btnRevoke">Revocar</button>
     <button type="button" class="btn-remove" id="btnRemove">Quitar revocación</button>
-    <button type="button" class="btn-list" id="btnList">Listar (Redis)</button>
+    <button type="button" class="btn-list" id="btnList">Listar revocadas</button>
+    <button type="button" class="btn-consult" id="btnConsult">Consultar estado</button>
   </div>
 
   <div id="msg"></div>
+  <div id="tableWrap"></div>
 
   <script>
     const msg = document.getElementById('msg');
+    const tableWrap = document.getElementById('tableWrap');
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
     function show(text, isErr) {
+      tableWrap.innerHTML = '';
       msg.className = isErr ? 'err' : 'ok';
       msg.textContent = text;
+    }
+
+    function showTable(items, counts) {
+      msg.textContent =
+        'Total revocadas: ' +
+        (counts ? counts.total : items.length) +
+        (counts
+          ? ' (Redis: ' +
+            counts.inRedis +
+            ', solo env: ' +
+            counts.inEnvOnly +
+            ')'
+          : '');
+      msg.className = 'ok';
+
+      if (!items.length) {
+        tableWrap.innerHTML = '<p style="color:#94a3b8;margin-top:12px;">No hay IDs revocados.</p>';
+        return;
+      }
+
+      let html =
+        '<table><thead><tr><th>License ID</th><th>Estado</th><th>Origen</th></tr></thead><tbody>';
+      for (const row of items) {
+        html +=
+          '<tr><td>' +
+          escapeHtml(row.licenseId) +
+          '</td><td><span class="badge-revoked">revoked</span></td><td>' +
+          escapeHtml(row.source || '—') +
+          '</td></tr>';
+      }
+      html += '</tbody></table>';
+      tableWrap.innerHTML = html;
     }
 
     async function post(path, body) {
@@ -119,11 +200,42 @@
       }
       try {
         const j = await post('/api/admin/list', { secret });
-        const ids = j.ids || [];
-        show(
-          'Total: ' + ids.length + '\n\n' + (ids.length ? ids.join('\n') : '(vacío)'),
-          false,
-        );
+        const items = j.items || [];
+        showTable(items, j.counts);
+      } catch (e) {
+        show(String(e.message || e), true);
+      }
+    };
+
+    document.getElementById('btnConsult').onclick = async () => {
+      const licenseId = document.getElementById('licenseId').value.trim();
+      const apiKey = document.getElementById('apiKey').value.trim();
+      if (!licenseId) {
+        show('Pega un License ID para consultar.', true);
+        return;
+      }
+      tableWrap.innerHTML = '';
+      let q =
+        'product=ventas-express-ingresos-v1&licenseId=' +
+        encodeURIComponent(licenseId);
+      if (apiKey) q += '&key=' + encodeURIComponent(apiKey);
+
+      try {
+        const r = await fetch('/api/check?' + q);
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          show(j.error || r.statusText || 'Error', true);
+          return;
+        }
+        const revoked = Boolean(j.revoked);
+        msg.className = 'ok';
+        msg.innerHTML =
+          '<strong>License ID:</strong> ' +
+          escapeHtml(licenseId) +
+          '<br/><br/><strong>Estado:</strong> ' +
+          (revoked
+            ? '<span class="badge-revoked">revoked</span> (bloqueada)'
+            : '<span class="badge-active">active</span> (no consta como revocada en el servidor)');
       } catch (e) {
         show(String(e.message || e), true);
       }
