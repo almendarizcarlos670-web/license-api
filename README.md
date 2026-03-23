@@ -84,6 +84,7 @@ license-api/
     check.js
     _redis.js
     _parseBody.js
+    _recordParse.js
     admin/
       revoke.js
       remove.js

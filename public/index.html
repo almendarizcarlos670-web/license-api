@@ -231,6 +231,48 @@
       font-size: 0.85rem;
       padding: 0 0 8px;
     }
+    .table-desc {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin: 0 0 10px;
+      line-height: 1.4;
+      max-width: 65ch;
+    }
+    table.table-revoked {
+      table-layout: fixed;
+    }
+    table.table-revoked .col-lic {
+      width: 42%;
+    }
+    table.table-revoked .col-state {
+      width: 18%;
+    }
+    table.table-records {
+      table-layout: fixed;
+    }
+    table.table-records .col-uuid {
+      width: 22%;
+      min-width: 200px;
+    }
+    table.table-records .col-hwid {
+      width: 24%;
+      min-width: 180px;
+    }
+    table.table-records .col-person {
+      width: 20%;
+    }
+    table.table-records .col-rev {
+      width: 10%;
+      white-space: nowrap;
+    }
+    table.table-records .col-when {
+      width: 14%;
+      font-size: 0.7rem;
+    }
+    .cell-muted {
+      color: #64748b;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -350,11 +392,13 @@
       let html = '';
 
       html += '<h2>Licencias revocadas</h2>';
+      html +=
+        '<p class="table-desc">UUID bloqueados en el servidor. La app del cliente no podrá usar esa licencia.</p>';
       if (!items.length) {
-        html += '<p class="empty-hint">No hay IDs en la lista de revocados.</p>';
+        html += '<p class="empty-hint">No hay IDs revocados.</p>';
       } else {
         html +=
-          '<table><thead><tr><th>License ID</th><th>Estado</th><th>Origen</th></tr></thead><tbody>';
+          '<table class="table-revoked"><thead><tr><th class="col-lic">UUID (License ID)</th><th class="col-state">Estado</th><th>Origen</th></tr></thead><tbody>';
         for (const row of items) {
           html +=
             '<tr><td class="mono">' +
@@ -366,23 +410,36 @@
         html += '</tbody></table>';
       }
 
-      html += '<h2>Registros (License ID + HWID)</h2>';
+      html += '<h2>Registros en Redis (equipo del cliente)</h2>';
+      html +=
+        '<p class="table-desc">Aquí ves el <strong>mismo UUID</strong> que en la licencia y el <strong>ID de equipo (HWID)</strong> que pegaste al guardar. Si una columna sale vacía, vuelve a pulsar <strong>Guardar registro</strong> con los datos correctos.</p>';
       if (!rec.length) {
         html +=
-          '<p class="empty-hint">No hay registros. Usa <strong>Guardar registro</strong> tras emitir la licencia.</p>';
+          '<p class="empty-hint">No hay registros. Tras emitir una licencia, usa <strong>Guardar registro</strong> con el UUID y el HWID del cliente.</p>';
       } else {
         html +=
-          '<table><thead><tr><th>License ID</th><th>HWID</th><th>Cliente</th><th>Doc.</th><th>Revocado</th><th>Actualizado</th></tr></thead><tbody>';
+          '<table class="table-records"><thead><tr><th class="col-uuid">UUID licencia</th><th class="col-hwid">HWID (ID del PC)</th><th class="col-person">Cliente</th><th class="col-rev">¿Revocado?</th><th class="col-when">Actualizado</th></tr></thead><tbody>';
         for (const row of rec) {
+          const nm = (row.clienteNombre || '').trim();
+          const doc = (row.clienteCedula || '').trim();
+          let personCell = '';
+          if (nm || doc) {
+            personCell =
+              escapeHtml(nm || '—') +
+              (doc ? '<br/><span style="opacity:.85">' + escapeHtml(doc) + '</span>' : '');
+          } else {
+            personCell = '<span class="cell-muted">(no indicado)</span>';
+          }
+          const hwidCell = (row.hwid || '').trim()
+            ? '<span class="mono">' + escapeHtml(row.hwid) + '</span>'
+            : '<span class="cell-muted">(sin HWID)</span>';
           html +=
             '<tr><td class="mono">' +
             escapeHtml(row.licenseId) +
-            '</td><td class="mono">' +
-            escapeHtml(row.hwid || '—') +
             '</td><td>' +
-            escapeHtml(row.clienteNombre || '—') +
+            hwidCell +
             '</td><td>' +
-            escapeHtml(row.clienteCedula || '—') +
+            personCell +
             '</td><td>' +
             (row.revoked
               ? '<span class="badge-revoked">sí</span>'

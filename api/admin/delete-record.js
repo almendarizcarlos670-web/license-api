@@ -1,5 +1,6 @@
 const { getRedis, SET_KEY, RECORDS_HASH_KEY } = require('../_redis');
 const { parseJsonBody } = require('../_parseBody');
+const { parseRecordMeta } = require('../_recordParse');
 
 /**
  * Borra el registro completo en Redis:
@@ -54,13 +55,9 @@ module.exports = async (req, res) => {
   try {
     const raw = await redis.hget(RECORDS_HASH_KEY, licenseId);
     if (hwidCheck && raw) {
-      let parsed;
-      try {
-        parsed = JSON.parse(raw);
-      } catch (_e) {
-        parsed = null;
-      }
-      const stored = parsed && typeof parsed.hwid === 'string' ? parsed.hwid.trim() : '';
+      const parsed = parseRecordMeta(raw);
+      const stored =
+        parsed && typeof parsed.hwid === 'string' ? parsed.hwid.trim() : '';
       if (stored && stored !== hwidCheck) {
         res.status(400).json({
           ok: false,
