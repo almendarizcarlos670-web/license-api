@@ -1,0 +1,6 @@
+{
+  "name": "ventas-express-license-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API mínima para comprobar licencias revocadas (desplegar en Vercel gratis)"
+}
