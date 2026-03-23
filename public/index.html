@@ -3,129 +3,319 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Admin — Licencias (Vercel)</title>
+  <title>Admin — Licencias</title>
   <style>
+    :root {
+      --bg: #0b1120;
+      --surface: #151f32;
+      --card: #1a2336;
+      --border: rgba(148, 163, 184, 0.18);
+      --muted: #94a3b8;
+      --text: #f1f5f9;
+      --accent: #3b82f6;
+      --danger: #dc2626;
+      --warn: #d97706;
+      --ok: #059669;
+      --purple: #7c3aed;
+      --radius: 12px;
+    }
     * { box-sizing: border-box; }
     body {
-      font-family: system-ui, sans-serif;
-      max-width: 960px;
-      margin: 40px auto;
-      padding: 0 16px;
-      background: #0f172a;
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.12), transparent);
+      color: var(--text);
+      line-height: 1.45;
+    }
+    .shell {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+    }
+    .page-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0 0 6px;
+    }
+    .page-sub {
+      font-size: 0.875rem;
+      color: var(--muted);
+      margin: 0 0 24px;
+      max-width: 52ch;
+    }
+    .page-sub code {
+      font-size: 0.8em;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(148, 163, 184, 0.12);
       color: #e2e8f0;
     }
-    h1 { font-size: 1.25rem; margin-bottom: 8px; }
-    h2 { font-size: 1rem; color: #94a3b8; margin: 20px 0 8px; }
-    p.hint { font-size: 0.85rem; color: #94a3b8; margin-bottom: 16px; }
-    label { display: block; font-size: 0.8rem; margin-bottom: 4px; color: #94a3b8; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin: 0 0 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .grid-2 {
+      display: grid;
+      gap: 14px 18px;
+    }
+    @media (min-width: 640px) {
+      .grid-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+      .span-2 { grid-column: 1 / -1; }
+    }
+    label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
     input {
       width: 100%;
       padding: 10px 12px;
       border-radius: 8px;
-      border: 1px solid #334155;
-      background: #1e293b;
-      color: #f8fafc;
-      margin-bottom: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.9rem;
     }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    input:focus {
+      outline: none;
+      border-color: rgba(59, 130, 246, 0.5);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+    input.mono {
+      font-family: ui-monospace, "Cascadia Code", monospace;
+      font-size: 0.82rem;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .actions + .actions {
+      margin-top: 10px;
+    }
+    .actions-note {
+      font-size: 0.75rem;
+      color: var(--muted);
+      width: 100%;
+      margin-top: 4px;
+    }
     button {
-      padding: 10px 16px;
+      padding: 9px 14px;
       border-radius: 8px;
       border: none;
       cursor: pointer;
       font-weight: 600;
+      font-size: 0.85rem;
+      transition: transform 0.05s, filter 0.15s;
     }
-    .btn-revoke { background: #dc2626; color: white; }
-    .btn-remove { background: #475569; color: white; }
-    .btn-list { background: #2563eb; color: white; }
-    .btn-consult { background: #059669; color: white; }
-    .btn-save { background: #7c3aed; color: white; }
-    .btn-delete { background: #b45309; color: white; }
-    #msg { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.9rem; white-space: pre-wrap; word-break: break-all; }
-    .ok { background: #14532d; border: 1px solid #22c55e; }
-    .err { background: #450a0a; border: 1px solid #f87171; }
+    button:hover { filter: brightness(1.08); }
+    button:active { transform: scale(0.98); }
+    .btn-ghost {
+      background: rgba(148, 163, 184, 0.12);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-ok { background: var(--ok); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-warn { background: var(--warn); color: #fff; }
+    .btn-muted { background: #475569; color: #fff; }
+    .btn-purple { background: var(--purple); color: #fff; }
+    .btn-group-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      width: 100%;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    #msg {
+      margin-top: 6px;
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      font-size: 0.88rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1px solid transparent;
+    }
+    .ok {
+      background: rgba(20, 83, 45, 0.35);
+      border-color: rgba(34, 197, 94, 0.35);
+      color: #bbf7d0;
+    }
+    .err {
+      background: rgba(69, 10, 10, 0.45);
+      border-color: rgba(248, 113, 113, 0.35);
+      color: #fecaca;
+    }
+    #tableWrap {
+      margin-top: 14px;
+      overflow-x: auto;
+    }
+    #tableWrap h2 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin: 20px 0 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    #tableWrap h2:first-child { margin-top: 0; }
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.8rem;
-      margin-top: 8px;
+      font-size: 0.78rem;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
     }
     th, td {
-      border: 1px solid #334155;
-      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 12px;
       text-align: left;
       vertical-align: top;
     }
-    th { background: #1e293b; color: #94a3b8; font-weight: 600; }
-    tr:nth-child(even) { background: #1e293b33; }
-    .mono { font-family: ui-monospace, monospace; font-size: 0.75rem; word-break: break-all; }
+    th {
+      background: var(--surface);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+    .mono {
+      font-family: ui-monospace, monospace;
+      font-size: 0.72rem;
+      word-break: break-all;
+    }
     .badge-revoked {
       display: inline-block;
       padding: 2px 8px;
       border-radius: 6px;
-      background: #7f1d1d;
+      background: rgba(127, 29, 29, 0.6);
       color: #fecaca;
-      font-size: 0.75rem;
+      font-size: 0.72rem;
     }
     .badge-active {
       display: inline-block;
       padding: 2px 8px;
       border-radius: 6px;
-      background: #14532d;
+      background: rgba(20, 83, 45, 0.55);
       color: #bbf7d0;
-      font-size: 0.75rem;
+      font-size: 0.72rem;
     }
-    #tableWrap { overflow-x: auto; }
+    .empty-hint {
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 0 0 8px;
+    }
   </style>
 </head>
 <body>
-  <h1>Licencias — revocación y registro (ID + PC)</h1>
-  <p class="hint">
-    Contraseña = <code>ADMIN_SECRET</code> en Vercel. Los UUID revocados viven en <strong>Redis</strong> (y opcionalmente en <code>REVOKED_LICENSE_IDS</code>).
-  </p>
-  <p class="hint">
-    <strong>Registro en Redis</strong>: puedes guardar el <strong>License ID</strong> junto al <strong>ID de equipo (HWID)</strong> del cliente para listarlo y <strong>borrarlo todo</strong> (revocación + datos del PC) cuando quieras.
-  </p>
+  <div class="shell">
+    <h1 class="page-title">Admin · Licencias</h1>
+    <p class="page-sub">
+      Usa <code>ADMIN_SECRET</code> de Vercel. Revocados en <strong>Redis</strong> (y opcionalmente en <code>REVOKED_LICENSE_IDS</code>).
+      Puedes guardar <strong>License ID + HWID</strong> para listar y borrar el registro completo.
+    </p>
 
-  <label for="secret">Contraseña de administrador</label>
-  <input id="secret" type="password" autocomplete="current-password" placeholder="ADMIN_SECRET" />
+    <section class="card" aria-labelledby="sec-access">
+      <h2 class="card-title" id="sec-access">Acceso</h2>
+      <div class="grid-2">
+        <div>
+          <label for="secret">Contraseña de administrador</label>
+          <input id="secret" type="password" autocomplete="current-password" placeholder="ADMIN_SECRET" />
+        </div>
+        <div>
+          <label for="apiKey">Clave API (opcional)</label>
+          <input id="apiKey" type="password" autocomplete="off" placeholder="LICENSE_API_KEY en Vercel" />
+        </div>
+      </div>
+    </section>
 
-  <label for="apiKey">Clave API (opcional)</label>
-  <input id="apiKey" type="password" autocomplete="off" placeholder="Solo si configuraste LICENSE_API_KEY en Vercel" />
+    <section class="card" aria-labelledby="sec-license">
+      <h2 class="card-title" id="sec-license">Licencia y equipo</h2>
+      <div class="grid-2">
+        <div class="span-2">
+          <label for="licenseId">License ID (UUID)</label>
+          <input id="licenseId" class="mono" type="text" placeholder="0528c987-9863-4a80-a704-03d88e0c6979" />
+        </div>
+        <div class="span-2">
+          <label for="hwid">ID de equipo (HWID)</label>
+          <input id="hwid" class="mono" type="text" placeholder="Pega el ID que copia el cliente en Activar licencia" />
+        </div>
+      </div>
+    </section>
 
-  <label for="licenseId">License ID (UUID)</label>
-  <input id="licenseId" type="text" placeholder="0528c987-9863-4a80-a704-03d88e0c6979" />
+    <section class="card" aria-labelledby="sec-client">
+      <h2 class="card-title" id="sec-client">Datos del cliente (opcional)</h2>
+      <div class="grid-2">
+        <div>
+          <label for="clienteNombre">Nombre</label>
+          <input id="clienteNombre" type="text" placeholder="Titular de la licencia" />
+        </div>
+        <div>
+          <label for="clienteCedula">Cédula / documento</label>
+          <input id="clienteCedula" type="text" placeholder="" />
+        </div>
+        <div class="span-2">
+          <label for="note">Nota interna</label>
+          <input id="note" type="text" placeholder="Solo visible para ti en este panel" />
+        </div>
+      </div>
+    </section>
 
-  <label for="hwid">ID de equipo / HWID (hash del PC del cliente)</label>
-  <input id="hwid" type="text" placeholder="Pega el ID que copia el cliente desde Activar licencia" />
+    <section class="card" aria-labelledby="sec-actions">
+      <h2 class="card-title" id="sec-actions">Acciones</h2>
 
-  <label for="clienteNombre">Nombre cliente (opcional, para el registro)</label>
-  <input id="clienteNombre" type="text" placeholder="" />
+      <span class="btn-group-label">Consulta</span>
+      <div class="actions">
+        <button type="button" class="btn-primary" id="btnList">Listar todo</button>
+        <button type="button" class="btn-ok" id="btnConsult">Consultar estado</button>
+      </div>
 
-  <label for="clienteCedula">Cédula / documento (opcional)</label>
-  <input id="clienteCedula" type="text" placeholder="" />
+      <span class="btn-group-label" style="margin-top:14px">Revocación</span>
+      <div class="actions">
+        <button type="button" class="btn-danger" id="btnRevoke">Revocar</button>
+        <button type="button" class="btn-muted" id="btnRemove">Quitar revocación</button>
+      </div>
 
-  <label for="note">Nota interna (opcional)</label>
-  <input id="note" type="text" placeholder="" />
+      <span class="btn-group-label" style="margin-top:14px">Registro Redis (ID + PC)</span>
+      <div class="actions">
+        <button type="button" class="btn-purple" id="btnSaveRecord">Guardar registro</button>
+        <button type="button" class="btn-warn" id="btnDeleteRecord">Borrar registro completo</button>
+      </div>
+      <p class="actions-note">
+        <strong>Borrar registro completo</strong> quita la revocación (si había) y los datos HWID en Redis.
+        Si rellenas HWID al borrar, debe coincidir; si lo dejas vacío, borra sin comprobar.
+      </p>
+    </section>
 
-  <div class="row">
-    <button type="button" class="btn-revoke" id="btnRevoke">Revocar</button>
-    <button type="button" class="btn-remove" id="btnRemove">Quitar revocación</button>
-    <button type="button" class="btn-list" id="btnList">Listar todo</button>
-    <button type="button" class="btn-consult" id="btnConsult">Consultar estado</button>
+    <div id="msg"></div>
+    <div id="tableWrap"></div>
   </div>
-
-  <div class="row">
-    <button type="button" class="btn-save" id="btnSaveRecord">Guardar registro (ID + PC)</button>
-    <button type="button" class="btn-delete" id="btnDeleteRecord">Borrar registro completo</button>
-  </div>
-  <p class="hint" style="margin-top:0">
-    <strong>Borrar registro completo</strong>: elimina en Redis la entrada de revocado (si existía) <strong>y</strong> los datos guardados (HWID, nombre, etc.).
-    Si rellenas HWID al borrar, debe coincidir con el guardado; si lo dejas vacío, borra sin comprobar.
-  </p>
-
-  <div id="msg"></div>
-  <div id="tableWrap"></div>
 
   <script>
     const msg = document.getElementById('msg');
@@ -152,7 +342,7 @@
         counts
           ? ' (Redis: ' + counts.inRedis + ', solo env: ' + counts.inEnvOnly + ')'
           : '',
-        ' · Registros (ID+PC en Redis): ' + (counts && counts.records != null ? counts.records : rec.length),
+        ' · Registros (ID+PC): ' + (counts && counts.records != null ? counts.records : rec.length),
       ];
       msg.textContent = parts.join('');
       msg.className = 'ok';
@@ -161,7 +351,7 @@
 
       html += '<h2>Licencias revocadas</h2>';
       if (!items.length) {
-        html += '<p style="color:#94a3b8;">No hay IDs en la lista de revocados.</p>';
+        html += '<p class="empty-hint">No hay IDs en la lista de revocados.</p>';
       } else {
         html +=
           '<table><thead><tr><th>License ID</th><th>Estado</th><th>Origen</th></tr></thead><tbody>';
@@ -176,13 +366,13 @@
         html += '</tbody></table>';
       }
 
-      html += '<h2>Registros guardados (License ID + HWID)</h2>';
+      html += '<h2>Registros (License ID + HWID)</h2>';
       if (!rec.length) {
         html +=
-          '<p style="color:#94a3b8;">No hay registros. Usa <strong>Guardar registro</strong> tras emitir la licencia.</p>';
+          '<p class="empty-hint">No hay registros. Usa <strong>Guardar registro</strong> tras emitir la licencia.</p>';
       } else {
         html +=
-          '<table><thead><tr><th>License ID</th><th>HWID (PC)</th><th>Cliente</th><th>Doc.</th><th>Revocado</th><th>Actualizado</th></tr></thead><tbody>';
+          '<table><thead><tr><th>License ID</th><th>HWID</th><th>Cliente</th><th>Doc.</th><th>Revocado</th><th>Actualizado</th></tr></thead><tbody>';
         for (const row of rec) {
           html +=
             '<tr><td class="mono">' +
