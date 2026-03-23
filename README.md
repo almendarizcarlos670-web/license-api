@@ -45,7 +45,23 @@ Abre la URL de tu proyecto:
 `https://TU-DOMINIO.vercel.app/`
 
 - Contraseña = `ADMIN_SECRET`
-- Pega el **License ID** y pulsa **Revocar** o **Quitar revocación** o **Listar**
+- Pega el **License ID** y pulsa **Revocar** o **Quitar revocación** o **Listar todo**
+
+### Registro local en Redis (License ID + ID de equipo del cliente)
+
+Además de marcar un UUID como revocado, puedes **guardar en Redis** un registro por licencia:
+
+- **HWID** (mismo “ID de equipo” que copia el cliente en la app de escritorio)
+- Opcional: nombre, cédula, nota interna
+
+**Guardar registro (ID + PC)** — `POST /api/admin/upsert-record`  
+Body JSON: `{ "secret", "licenseId", "hwid", "clienteNombre?", "clienteCedula?", "note?" }`
+
+**Borrar registro completo** — `POST /api/admin/delete-record`  
+Quita el UUID del set de **revocados** (si estaba) **y** borra los metadatos (HWID, etc.) del hash en Redis.  
+Body: `{ "secret", "licenseId", "hwid?" }` — si envías `hwid`, debe coincidir con el guardado; si no envías `hwid`, borra sin comprobar.
+
+La lista (**Listar todo**) muestra dos tablas: revocados y registros con HWID.
 
 ---
 
@@ -72,6 +88,8 @@ license-api/
       revoke.js
       remove.js
       list.js
+      upsert-record.js
+      delete-record.js
 ```
 
 ---

@@ -1,4 +1,4 @@
-const { getRedis, SET_KEY } = require('../_redis');
+const { getRedis, SET_KEY, RECORDS_HASH_KEY } = require('../_redis');
 const { parseJsonBody } = require('../_parseBody');
 
 function parseEnvRevokedIds() {
@@ -43,9 +43,12 @@ module.exports = async (req, res) => {
 
   const redis = getRedis();
   let redisIds = [];
+  /** @type {Record<string, string>} */
+  let recordsRaw = {};
   if (redis) {
     try {
       redisIds = await redis.smembers(SET_KEY);
+      recordsRaw = (await redis.hgetall(RECORDS_HASH_KEY)) || {};
     } catch (e) {
       return res.status(500).json({ ok: false, error: String(e.message || e) });
     }
@@ -54,8 +57,27 @@ module.exports = async (req, res) => {
   const envSet = parseEnvRevokedIds();
   const redisSet = new Set((redisIds || []).map(String));
 
-  const allIds = new Set([...redisSet, ...envSet]);
-  const items = [...allIds]
+  const recordIds = Object.keys(recordsRaw || {});
+  const recordEntries = recordIds.map((licenseId) => {
+    let meta = {};
+    try {
+      meta = JSON.parse(recordsRaw[licenseId] || '{}');
+    } catch (_e) {
+      meta = {};
+    }
+    return {
+      licenseId,
+      hwid: typeof meta.hwid === 'string' ? meta.hwid : '',
+      clienteNombre: typeof meta.clienteNombre === 'string' ? meta.clienteNombre : '',
+      clienteCedula: typeof meta.clienteCedula === 'string' ? meta.clienteCedula : '',
+      note: typeof meta.note === 'string' ? meta.note : '',
+      updatedAt: typeof meta.updatedAt === 'string' ? meta.updatedAt : '',
+      revoked: redisSet.has(licenseId) || envSet.has(licenseId),
+    };
+  });
+
+  const allRevokedIds = new Set([...redisSet, ...envSet]);
+  const items = [...allRevokedIds]
     .sort()
     .map((licenseId) => {
       const inR = redisSet.has(licenseId);
@@ -72,13 +94,17 @@ module.exports = async (req, res) => {
       };
     });
 
+  recordEntries.sort((a, b) => String(a.licenseId).localeCompare(String(b.licenseId)));
+
   res.status(200).json({
     ok: true,
     items,
+    records: recordEntries,
     counts: {
       total: items.length,
       inRedis: redisSet.size,
       inEnvOnly: [...envSet].filter((id) => !redisSet.has(id)).length,
+      records: recordEntries.length,
     },
   });
 };

@@ -3,18 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Admin — Licencias revocadas</title>
+  <title>Admin — Licencias (Vercel)</title>
   <style>
     * { box-sizing: border-box; }
     body {
       font-family: system-ui, sans-serif;
-      max-width: 720px;
+      max-width: 960px;
       margin: 40px auto;
       padding: 0 16px;
       background: #0f172a;
       color: #e2e8f0;
     }
     h1 { font-size: 1.25rem; margin-bottom: 8px; }
+    h2 { font-size: 1rem; color: #94a3b8; margin: 20px 0 8px; }
     p.hint { font-size: 0.85rem; color: #94a3b8; margin-bottom: 16px; }
     label { display: block; font-size: 0.8rem; margin-bottom: 4px; color: #94a3b8; }
     input {
@@ -38,22 +39,26 @@
     .btn-remove { background: #475569; color: white; }
     .btn-list { background: #2563eb; color: white; }
     .btn-consult { background: #059669; color: white; }
+    .btn-save { background: #7c3aed; color: white; }
+    .btn-delete { background: #b45309; color: white; }
     #msg { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.9rem; white-space: pre-wrap; word-break: break-all; }
     .ok { background: #14532d; border: 1px solid #22c55e; }
     .err { background: #450a0a; border: 1px solid #f87171; }
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       margin-top: 8px;
     }
     th, td {
       border: 1px solid #334155;
       padding: 8px 10px;
       text-align: left;
+      vertical-align: top;
     }
     th { background: #1e293b; color: #94a3b8; font-weight: 600; }
     tr:nth-child(even) { background: #1e293b33; }
+    .mono { font-family: ui-monospace, monospace; font-size: 0.75rem; word-break: break-all; }
     .badge-revoked {
       display: inline-block;
       padding: 2px 8px;
@@ -74,12 +79,12 @@
   </style>
 </head>
 <body>
-  <h1>Licencias revocadas</h1>
+  <h1>Licencias — revocación y registro (ID + PC)</h1>
   <p class="hint">
-    Contraseña = <code>ADMIN_SECRET</code> en Vercel. Los ID en <strong>Redis</strong> se gestionan aquí; los de la variable <code>REVOKED_LICENSE_IDS</code> también aparecen en la lista.
+    Contraseña = <code>ADMIN_SECRET</code> en Vercel. Los UUID revocados viven en <strong>Redis</strong> (y opcionalmente en <code>REVOKED_LICENSE_IDS</code>).
   </p>
   <p class="hint">
-    Solo se listan licencias <strong>revocadas</strong>. Para saber si un ID concreto está <strong>activa</strong>, usa <strong>Consultar estado</strong> con ese UUID.
+    <strong>Registro en Redis</strong>: puedes guardar el <strong>License ID</strong> junto al <strong>ID de equipo (HWID)</strong> del cliente para listarlo y <strong>borrarlo todo</strong> (revocación + datos del PC) cuando quieras.
   </p>
 
   <label for="secret">Contraseña de administrador</label>
@@ -91,13 +96,34 @@
   <label for="licenseId">License ID (UUID)</label>
   <input id="licenseId" type="text" placeholder="0528c987-9863-4a80-a704-03d88e0c6979" />
 
+  <label for="hwid">ID de equipo / HWID (hash del PC del cliente)</label>
+  <input id="hwid" type="text" placeholder="Pega el ID que copia el cliente desde Activar licencia" />
+
+  <label for="clienteNombre">Nombre cliente (opcional, para el registro)</label>
+  <input id="clienteNombre" type="text" placeholder="" />
+
+  <label for="clienteCedula">Cédula / documento (opcional)</label>
+  <input id="clienteCedula" type="text" placeholder="" />
+
+  <label for="note">Nota interna (opcional)</label>
+  <input id="note" type="text" placeholder="" />
+
   <div class="row">
     <button type="button" class="btn-revoke" id="btnRevoke">Revocar</button>
     <button type="button" class="btn-remove" id="btnRemove">Quitar revocación</button>
-    <button type="button" class="btn-list" id="btnList">Listar revocadas</button>
+    <button type="button" class="btn-list" id="btnList">Listar todo</button>
     <button type="button" class="btn-consult" id="btnConsult">Consultar estado</button>
   </div>
 
+  <div class="row">
+    <button type="button" class="btn-save" id="btnSaveRecord">Guardar registro (ID + PC)</button>
+    <button type="button" class="btn-delete" id="btnDeleteRecord">Borrar registro completo</button>
+  </div>
+  <p class="hint" style="margin-top:0">
+    <strong>Borrar registro completo</strong>: elimina en Redis la entrada de revocado (si existía) <strong>y</strong> los datos guardados (HWID, nombre, etc.).
+    Si rellenas HWID al borrar, debe coincidir con el guardado; si lo dejas vacío, borra sin comprobar.
+  </p>
+
   <div id="msg"></div>
   <div id="tableWrap"></div>
 
@@ -119,35 +145,65 @@
       msg.textContent = text;
     }
 
-    function showTable(items, counts) {
-      msg.textContent =
-        'Total revocadas: ' +
-        (counts ? counts.total : items.length) +
-        (counts
-          ? ' (Redis: ' +
-            counts.inRedis +
-            ', solo env: ' +
-            counts.inEnvOnly +
-            ')'
-          : '');
+    function showTable(items, counts, records) {
+      const rec = records || [];
+      const parts = [
+        'Revocadas: ' + (counts ? counts.total : items.length),
+        counts
+          ? ' (Redis: ' + counts.inRedis + ', solo env: ' + counts.inEnvOnly + ')'
+          : '',
+        ' · Registros (ID+PC en Redis): ' + (counts && counts.records != null ? counts.records : rec.length),
+      ];
+      msg.textContent = parts.join('');
       msg.className = 'ok';
 
+      let html = '';
+
+      html += '<h2>Licencias revocadas</h2>';
       if (!items.length) {
-        tableWrap.innerHTML = '<p style="color:#94a3b8;margin-top:12px;">No hay IDs revocados.</p>';
-        return;
+        html += '<p style="color:#94a3b8;">No hay IDs en la lista de revocados.</p>';
+      } else {
+        html +=
+          '<table><thead><tr><th>License ID</th><th>Estado</th><th>Origen</th></tr></thead><tbody>';
+        for (const row of items) {
+          html +=
+            '<tr><td class="mono">' +
+            escapeHtml(row.licenseId) +
+            '</td><td><span class="badge-revoked">revoked</span></td><td>' +
+            escapeHtml(row.source || '—') +
+            '</td></tr>';
+        }
+        html += '</tbody></table>';
       }
 
-      let html =
-        '<table><thead><tr><th>License ID</th><th>Estado</th><th>Origen</th></tr></thead><tbody>';
-      for (const row of items) {
+      html += '<h2>Registros guardados (License ID + HWID)</h2>';
+      if (!rec.length) {
         html +=
-          '<tr><td>' +
-          escapeHtml(row.licenseId) +
-          '</td><td><span class="badge-revoked">revoked</span></td><td>' +
-          escapeHtml(row.source || '—') +
-          '</td></tr>';
+          '<p style="color:#94a3b8;">No hay registros. Usa <strong>Guardar registro</strong> tras emitir la licencia.</p>';
+      } else {
+        html +=
+          '<table><thead><tr><th>License ID</th><th>HWID (PC)</th><th>Cliente</th><th>Doc.</th><th>Revocado</th><th>Actualizado</th></tr></thead><tbody>';
+        for (const row of rec) {
+          html +=
+            '<tr><td class="mono">' +
+            escapeHtml(row.licenseId) +
+            '</td><td class="mono">' +
+            escapeHtml(row.hwid || '—') +
+            '</td><td>' +
+            escapeHtml(row.clienteNombre || '—') +
+            '</td><td>' +
+            escapeHtml(row.clienteCedula || '—') +
+            '</td><td>' +
+            (row.revoked
+              ? '<span class="badge-revoked">sí</span>'
+              : '<span class="badge-active">no</span>') +
+            '</td><td class="mono">' +
+            escapeHtml(row.updatedAt || '—') +
+            '</td></tr>';
+        }
+        html += '</tbody></table>';
       }
-      html += '</tbody></table>';
+
       tableWrap.innerHTML = html;
     }
 
@@ -158,7 +214,7 @@
         body: JSON.stringify(body),
       });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.error || r.statusText || 'Error');
+      if (!r.ok) throw new Error(j.error || j.hint || r.statusText || 'Error');
       return j;
     }
 
@@ -201,7 +257,61 @@
       try {
         const j = await post('/api/admin/list', { secret });
         const items = j.items || [];
-        showTable(items, j.counts);
+        const records = j.records || [];
+        showTable(items, j.counts, records);
+      } catch (e) {
+        show(String(e.message || e), true);
+      }
+    };
+
+    document.getElementById('btnSaveRecord').onclick = async () => {
+      const secret = document.getElementById('secret').value.trim();
+      const licenseId = document.getElementById('licenseId').value.trim();
+      const hwid = document.getElementById('hwid').value.trim();
+      const clienteNombre = document.getElementById('clienteNombre').value.trim();
+      const clienteCedula = document.getElementById('clienteCedula').value.trim();
+      const note = document.getElementById('note').value.trim();
+      if (!secret || !licenseId) {
+        show('Completa contraseña y License ID.', true);
+        return;
+      }
+      if (!hwid) {
+        show('Completa el ID de equipo (HWID) del cliente.', true);
+        return;
+      }
+      try {
+        const j = await post('/api/admin/upsert-record', {
+          secret,
+          licenseId,
+          hwid,
+          clienteNombre,
+          clienteCedula,
+          note,
+        });
+        show(JSON.stringify(j, null, 2), false);
+      } catch (e) {
+        show(String(e.message || e), true);
+      }
+    };
+
+    document.getElementById('btnDeleteRecord').onclick = async () => {
+      const secret = document.getElementById('secret').value.trim();
+      const licenseId = document.getElementById('licenseId').value.trim();
+      const hwid = document.getElementById('hwid').value.trim();
+      if (!secret || !licenseId) {
+        show('Completa contraseña y License ID.', true);
+        return;
+      }
+      if (!confirm('¿Borrar registro completo (revocación + datos HWID en Redis) para este License ID?')) {
+        return;
+      }
+      try {
+        const j = await post('/api/admin/delete-record', {
+          secret,
+          licenseId,
+          ...(hwid ? { hwid } : {}),
+        });
+        show(JSON.stringify(j, null, 2), false);
       } catch (e) {
         show(String(e.message || e), true);
       }

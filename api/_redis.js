@@ -16,6 +16,13 @@ function getRedis() {
   }
 }
 
+/** Set de UUID revocados (solo IDs). */
 const SET_KEY = 'revoked:licenseIds';
 
-module.exports = { getRedis, SET_KEY };
+/**
+ * Hash: licenseId → JSON { hwid, clienteNombre?, clienteCedula?, note?, updatedAt }
+ * Permite listar y borrar el registro completo (incl. ID de equipo del cliente).
+ */
+const RECORDS_HASH_KEY = 'license:records';
+
+module.exports = { getRedis, SET_KEY, RECORDS_HASH_KEY };
