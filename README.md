@@ -63,7 +63,9 @@ Body: `{ "secret", "licenseId", "hwid?" }` — si envías `hwid`, debe coincidir
 
 La lista (**Listar todo**) muestra dos tablas: revocados y registros con HWID.
 
-**Nota técnica:** el listado de registros usa **`HKEYS` + `HGET`** (no `HGETALL`), porque el cliente REST de Upstash puede devolver `HGETALL` mal formado (columnas 0, 1, 10… y sin HWID). Si aún ves datos raros, en Upstash Redis puede borrarse la clave `license:records` y volver a **Guardar registro** desde el panel.
+**Importante (Upstash):** `hset` se usa como `hset(claveHash, { nombreCampo: valor })`, no como tres argumentos. Un bug anterior guardaba el UUID como string y Redis creaba campos `0`,`1`,`2`… (caracteres del UUID). Si tu base ya tiene basura, en Upstash borra la clave **`license:records`** y vuelve a **Guardar registro** por cada licencia.
+
+El listado usa **`HKEYS` + `HGET`** por robustez frente a `HGETALL` en REST.
 
 ---
 

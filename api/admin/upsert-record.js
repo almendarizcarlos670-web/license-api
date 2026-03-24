@@ -64,7 +64,11 @@ module.exports = async (req, res) => {
   };
 
   try {
-    await redis.hset(RECORDS_HASH_KEY, licenseId, JSON.stringify(record));
+    // Upstash: hset(key, { field: value }) — NO (key, field, value). Si pasas 3 args, el UUID se
+    // convierte en Object.entries(string) → campos "0","1","2"… (un carácter por campo).
+    await redis.hset(RECORDS_HASH_KEY, {
+      [licenseId]: JSON.stringify(record),
+    });
     res.status(200).json({ ok: true, licenseId, action: 'upsert-record', record });
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e.message || e) });
