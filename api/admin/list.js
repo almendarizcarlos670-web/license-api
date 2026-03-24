@@ -1,9 +1,6 @@
 const { getRedis, SET_KEY, RECORDS_HASH_KEY } = require('../_redis');
 const { parseJsonBody } = require('../_parseBody');
-const {
-  normalizeHgetallResult,
-  parseRecordMeta,
-} = require('../_recordParse');
+const { loadRecordsHashFromRedis, parseRecordMeta } = require('../_recordParse');
 
 function parseEnvRevokedIds() {
   const raw = process.env.REVOKED_LICENSE_IDS || '';
@@ -52,9 +49,7 @@ module.exports = async (req, res) => {
   if (redis) {
     try {
       redisIds = await redis.smembers(SET_KEY);
-      recordsRaw = normalizeHgetallResult(
-        await redis.hgetall(RECORDS_HASH_KEY),
-      );
+      recordsRaw = await loadRecordsHashFromRedis(redis, RECORDS_HASH_KEY);
     } catch (e) {
       return res.status(500).json({ ok: false, error: String(e.message || e) });
     }

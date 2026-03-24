@@ -273,6 +273,43 @@
       color: #64748b;
       font-style: italic;
     }
+    .result-card {
+      text-align: left;
+    }
+    .result-card-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+      color: #ecfdf5;
+    }
+    .result-dl {
+      margin: 0;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 6px 16px;
+      font-size: 0.85rem;
+    }
+    .result-dl dt {
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .result-dl dd {
+      margin: 0;
+    }
+    .result-hint {
+      margin: 14px 0 0;
+      font-size: 0.8rem;
+      color: #a7f3d0;
+      opacity: 0.95;
+    }
+    .result-p { margin: 0 0 8px; }
+    .result-ul { margin: 8px 0 0; padding-left: 1.1rem; font-size: 0.85rem; }
+    .result-json {
+      margin: 0;
+      font-size: 0.78rem;
+      overflow: auto;
+      max-height: 280px;
+    }
   </style>
 </head>
 <body>
@@ -377,6 +414,75 @@
       msg.textContent = text;
     }
 
+    /** Respuestas JSON legibles (sin bloque crudo), salvo tipos desconocidos */
+    function showApiResult(j) {
+      tableWrap.innerHTML = '';
+      msg.className = 'ok';
+      if (!j || typeof j !== 'object') {
+        msg.textContent = String(j);
+        return;
+      }
+      if (j.ok && j.action === 'upsert-record' && j.record) {
+        const r = j.record;
+        msg.innerHTML =
+          '<div class="result-card"><div class="result-card-title">Registro guardado en Redis</div>' +
+          '<dl class="result-dl">' +
+          '<dt>UUID licencia</dt><dd class="mono">' +
+          escapeHtml(String(j.licenseId || '')) +
+          '</dd>' +
+          '<dt>HWID (PC)</dt><dd class="mono">' +
+          escapeHtml(String(r.hwid || '')) +
+          '</dd>' +
+          '<dt>Cliente</dt><dd>' +
+          escapeHtml(String(r.clienteNombre || '—')) +
+          '</dd>' +
+          '<dt>Documento</dt><dd>' +
+          escapeHtml(String(r.clienteCedula || '—')) +
+          '</dd>' +
+          '<dt>Nota</dt><dd>' +
+          escapeHtml(String(r.note || '—')) +
+          '</dd>' +
+          '<dt>Actualizado</dt><dd class="mono">' +
+          escapeHtml(String(r.updatedAt || '')) +
+          '</dd>' +
+          '</dl>' +
+          '<p class="result-hint">Pulsa <strong>Listar todo</strong> para refrescar la tabla de abajo.</p></div>';
+        return;
+      }
+      if (j.ok && j.action === 'delete-record') {
+        msg.innerHTML =
+          '<div class="result-card"><div class="result-card-title">Registro eliminado</div>' +
+          '<p class="result-p">UUID <code class="mono">' +
+          escapeHtml(String(j.licenseId || '')) +
+          '</code></p>' +
+          '<ul class="result-ul">' +
+          '<li>Quitado de revocados: <strong>' +
+          (j.removedFromRevoked ? 'sí' : 'no') +
+          '</strong></li>' +
+          '<li>Metadatos HWID borrados: <strong>' +
+          (j.removedRecordFields ? 'sí' : 'no') +
+          '</strong></li></ul>' +
+          '<p class="result-hint">Pulsa <strong>Listar todo</strong> para actualizar la vista.</p></div>';
+        return;
+      }
+      if (j.ok && j.action === 'revoked') {
+        msg.innerHTML =
+          '<div class="result-card"><p class="result-p">UUID <code class="mono">' +
+          escapeHtml(String(j.licenseId || '')) +
+          '</code> marcado como <strong>revocado</strong>.</p></div>';
+        return;
+      }
+      if (j.ok && j.action === 'removed') {
+        msg.innerHTML =
+          '<div class="result-card"><p class="result-p">UUID <code class="mono">' +
+          escapeHtml(String(j.licenseId || '')) +
+          '</code>: <strong>quitada</strong> la revocación en Redis.</p></div>';
+        return;
+      }
+      msg.innerHTML =
+        '<pre class="result-json">' + escapeHtml(JSON.stringify(j, null, 2)) + '</pre>';
+    }
+
     function showTable(items, counts, records) {
       const rec = records || [];
       const parts = [
@@ -474,7 +580,7 @@
       }
       try {
         const j = await post('/api/admin/revoke', { secret, licenseId });
-        show(JSON.stringify(j, null, 2), false);
+        showApiResult(j);
       } catch (e) {
         show(String(e.message || e), true);
       }
@@ -489,7 +595,7 @@
       }
       try {
         const j = await post('/api/admin/remove', { secret, licenseId });
-        show(JSON.stringify(j, null, 2), false);
+        showApiResult(j);
       } catch (e) {
         show(String(e.message || e), true);
       }
@@ -535,7 +641,7 @@
           clienteCedula,
           note,
         });
-        show(JSON.stringify(j, null, 2), false);
+        showApiResult(j);
       } catch (e) {
         show(String(e.message || e), true);
       }
@@ -558,7 +664,7 @@
           licenseId,
           ...(hwid ? { hwid } : {}),
         });
-        show(JSON.stringify(j, null, 2), false);
+        showApiResult(j);
       } catch (e) {
         show(String(e.message || e), true);
       }

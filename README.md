@@ -63,6 +63,8 @@ Body: `{ "secret", "licenseId", "hwid?" }` — si envías `hwid`, debe coincidir
 
 La lista (**Listar todo**) muestra dos tablas: revocados y registros con HWID.
 
+**Nota técnica:** el listado de registros usa **`HKEYS` + `HGET`** (no `HGETALL`), porque el cliente REST de Upstash puede devolver `HGETALL` mal formado (columnas 0, 1, 10… y sin HWID). Si aún ves datos raros, en Upstash Redis puede borrarse la clave `license:records` y volver a **Guardar registro** desde el panel.
+
 ---
 
 ## 4) Probar la API
